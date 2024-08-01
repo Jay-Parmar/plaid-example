@@ -17,11 +17,12 @@ router.post("/sync", async (req, res, next) => {
   try {
     const userId = getLoggedInUserId(req);
     const items = await db.getItemIdsForUser(userId);
-    // items.forEach((item) => {
-    //   syncTransactions(item.id);
-    // })
-    await syncTransactions(items[0].id);
-    res.json({ todo: "Implement this method" });
+    console.log(items);
+    const results = await Promise.all(
+      items.map(async (item) => await syncTransactions(item.id))
+    );
+    
+    res.json({ "results": results });
   } catch (error) {
     console.log(`Running into an error!`);
     next(error);
