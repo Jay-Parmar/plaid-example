@@ -11,7 +11,7 @@ let db;
 // Set up our database
 const existingDatabase = fs.existsSync(databaseFile);
 const createUsersTableSQL =
-  "CREATE TABLE users (id TEXT PRIMARY KEY, username TEXT NOT NULL)";
+  "CREATE TABLE users (id TEXT PRIMARY KEY, username TEXT NOT NULL, is_admin INTEGER NOT_NULL DEFAULT 0)";
 const createItemsTableSQL =
   "CREATE TABLE items (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, " +
   "access_token TEXT NOT NULL, transaction_cursor TEXT, bank_name TEXT, " +
@@ -132,7 +132,23 @@ const addUser = async function (userId, username) {
 };
 
 const getUserList = async function () {
-  const result = await db.all(`SELECT id, username FROM users`);
+  const result = await db.all(`SELECT id, username, is_admin FROM users`);
+  return result;
+};
+
+const getTransactionCategories = async function () {
+  const result = await db.all("SELECT DISTINCT category FROM transactions");
+  return result;
+};
+
+const getAllBanks = async function () {
+  const result = await db.all("SELECT DISTINCT bank_name FROM items");
+  return result;
+}
+
+const getAllUsers = async function (userId) {
+  // console.log(":::inside get users", userId);
+  const result = await db.all(`SELECT * FROM users WHERE (id != ?) AND is_admin == 0`, userId);
   return result;
 };
 
@@ -330,6 +346,64 @@ const getTransactionsForUser = async function (userId, maxNum) {
   return results;
 };
 
+const getAllTransactions = async function (params, maxNum) {
+  const { userIds, categories, banks } = params;
+
+  let sql = `
+    SELECT transactions.*,
+      accounts.name as account_name,
+      items.bank_name as bank_name,
+      transactions.category as category,
+      users.username as username
+    FROM transactions
+    JOIN accounts ON transactions.account_id = accounts.id
+    JOIN items ON accounts.item_id = items.id
+    JOIN users ON users.id = transactions.user_id
+    WHERE is_removed = 0`;
+
+  const conditions = [];
+  if (userIds && userIds.length) {
+    conditions.push(`transactions.user_id IN (${userIds.map(() => '?').join(',')})`);
+  }
+  if (categories && categories.length) {
+    conditions.push(`transactions.category IN (${categories.map(() => '?').join(',')})`);
+  }
+  if (banks && banks.length) {
+    conditions.push(`items.bank_name IN (${banks.map(() => '?').join(',')})`);
+  }
+
+  if (conditions.length) {
+    sql += ` AND ${conditions.join(' AND ')}`;
+  }
+
+  sql += ' ORDER BY date DESC';
+
+  if (maxNum) {
+    sql += ' LIMIT ?';
+  }
+
+  // Prepare parameters for the SQL query
+  const queryParams = [].concat(...userIds, ...categories, ...banks);
+  if (maxNum) {
+    queryParams.push(maxNum);
+  }
+  const results = await db.all(sql, ...queryParams);
+  return results;
+};
+
+const createAdmin = async function (userId) {
+  try {
+    await db.run(
+      `UPDATE users SET is_admin = 1 WHERE id = ?`,
+      userId
+    );
+  } catch (error) {
+    console.error(
+      `The user doesn't exist? Check your id again. ${JSON.stringify(error)}`
+    );
+  }
+}
+
 /**
  * Save our cursor to the database
  *
@@ -361,6 +435,11 @@ module.exports = {
   getUserList,
   getUserRecord,
   getBankNamesForUser,
+  getTransactionCategories,
+  getAllUsers,
+  getAllBanks,
+  getAllTransactions,
+  createAdmin,
   addItem,
   addBankNameForItem,
   addAccount,

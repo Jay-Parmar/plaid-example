@@ -184,4 +184,15 @@ router.get("/list", async (req, res, next) => {
   }
 });
 
+router.post("/list_all", async (req, res, next) => {
+  try {
+    const maxCount = req.params.maxCount ?? 50;
+    const transactions = await db.getAllTransactions(req.body, maxCount);
+    res.json(transactions);
+  } catch (error) {
+    console.log(`Running into an error!`);
+    next(error);
+  }
+});
+
 module.exports = { router, syncTransactions };

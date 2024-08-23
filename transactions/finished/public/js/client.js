@@ -4,6 +4,7 @@ import {
   refreshSignInStatus,
   signIn,
   signOut,
+  filterData,
 } from "./signin.js";
 import {
   callMyServer,
@@ -98,6 +99,7 @@ const selectorsAndFunctions = {
   "#createAccount": createNewUser,
   "#signIn": signIn,
   "#signOut": signOut,
+  '#filterData': filterData,
   "#connectToBank": connectToBank,
   "#serverRefresh": serverRefresh,
   "#clientRefresh": clientRefresh,

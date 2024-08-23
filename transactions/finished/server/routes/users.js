@@ -60,6 +60,30 @@ router.post("/sign_out", async (req, res, next) => {
   }
 });
 
+router.post("/create_admin", async function (req, res, next) {
+  try {
+    await db.createAdmin(req.body.userId);
+    res.json({ user: req.body.userId });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/get_filter_data", async (req, res, next) => {
+  let result;
+  try {
+    const userId = getLoggedInUserId(req);
+    result = {
+      users: await db.getAllUsers(userId),
+      categories: await db.getTransactionCategories(),
+      banks: await db.getAllBanks()
+    };
+  } catch (error) {
+    next(error);
+  }
+  res.json({filterInfo: result});
+});
+
 /**
  * Get the id and username of our currently logged in user, if any.
  */
@@ -76,7 +100,7 @@ router.get("/get_my_info", async (req, res, next) => {
         res.json({ userInfo: null });
         return;
       } else {
-        result = { id: userObject.id, username: userObject.username };
+        result = { id: userObject.id, username: userObject.username, isAdmin: userObject.is_admin };
       }
     } else {
       result = null;
